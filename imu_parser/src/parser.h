@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <termios.h>
 
 namespace IMUParser {
     struct Packet {
@@ -9,7 +10,7 @@ namespace IMUParser {
     };
 
     struct Config {
-        long baud_rate;
+        speed_t baud_rate;
         char device[20];
     
         Config(long baud, const char* dev);
