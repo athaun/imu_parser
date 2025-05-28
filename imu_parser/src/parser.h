@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <termios.h>
+#include <optional>
 
 namespace IMUParser {
+    
     struct Packet {
         uint32_t packet_count;
         float X_rate_rdps, Y_rate_rdps, Z_rate_rdps;
@@ -15,6 +17,9 @@ namespace IMUParser {
     
         Config(long baud, const char* dev);
     };
-    
-    Packet read_from_device(const Config& config);
+
+    /**
+     * Takes in a serial port config and returns the latest full IMU packet from the device as an optional (may fail)
+     */
+    std::optional<Packet> read_from_device(const Config& config);
 }
