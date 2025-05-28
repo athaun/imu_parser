@@ -1,0 +1,12 @@
+.DS_Store
+*~
+*.o
+*.obj
+*.exe *.exe
+*.dll *.DLL *.so
+.git
+build/
+__pycache__/
+*.pyc
+*.pyo
+CMakeFiles
