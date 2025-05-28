@@ -1,6 +1,7 @@
 ## Technical Assessment for True Anomaly
 Asher Haun
-Started on 5/27/2025
+
+5/27/2025
 
 ### Running the parser
 From the repository root
