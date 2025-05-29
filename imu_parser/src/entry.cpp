@@ -25,13 +25,16 @@ int main() {
         return 1;
     }
 
+    auto device_cfg = IMUParser::Config(B921600, "/tmp/tty1");
+    if (!IMUParser::init(device_cfg)) {
+        return 1;
+    }
+
     while (true) {
-        auto device_cfg = IMUParser::Config(B921600, "/dev/pts/4");
-        auto packet = IMUParser::read_from_device(device_cfg);
+        
+        auto packets = IMUParser::read_from_device(device_cfg);
 
-        if (packet.has_value()) {
-            IMUParser::Packet& p = packet.value();
-
+        for (auto& p : packets) {
             char msg[128];
             snprintf(msg, sizeof(msg),
                 "{ \"count\": %u, \"X\": %.3f, \"Y\": %.3f, \"Z\": %.3f }",
@@ -50,7 +53,8 @@ int main() {
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next_time, nullptr);
     }
 
-    Broadcaster::close_socket();
+    Broadcaster::cleanup();
+    IMUParser::cleanup(device_cfg);
 
     return 0;
 }

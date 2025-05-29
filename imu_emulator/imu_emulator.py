@@ -51,7 +51,7 @@ def udp_listener(port=9000):
 def imu_emulator(pty_host):
     with os.fdopen(pty_host, 'wb', buffering=0) as imu_output:
         packet_count = 0
-        while packet_count < TOTAL_PACKETS:
+        while True:
             packet = build_packet(
                 count = packet_count,
                 x = 0.1 * packet_count,
@@ -67,7 +67,7 @@ def imu_emulator(pty_host):
                 sent_packets[packet_count] = time.time()
 
             packet_count += 1
-            time.sleep(0.0001);
+            time.sleep(0.01);
 
         with lock:
             missed = [p for p in sent_packets if p not in received_packets]
@@ -91,7 +91,15 @@ def main():
     attrs[3] = 0            # lflag
     termios.tcsetattr(pty_device, termios.TCSANOW, attrs)
 
-    print(f"[IMU] Virtual serial device created at: {pty_device_path}\n")
+    symlink_path = "/tmp/tty1"
+    try:
+        os.unlink(symlink_path)
+    except FileNotFoundError:
+        pass
+    os.symlink(pty_device_path, symlink_path)
+
+    print(f"[IMU] Virtual serial device created at: {pty_device_path}")
+    print(f"[IMU] Symlinked to: {symlink_path}\n")
 
     # Launch both threads
     threading.Thread(target=udp_listener).start()
