@@ -17,5 +17,5 @@ namespace Broadcaster {
      */
     bool send_str(const char* msg);
 
-    void close_socket();
+    void cleanup();
 }

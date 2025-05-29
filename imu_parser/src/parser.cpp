@@ -21,6 +21,51 @@ namespace IMUParser {
         device[sizeof(device) - 1] = '\0';
     }
 
+    bool init (Config& config) {
+        int serial_port = open(config.device, O_RDWR | O_NOCTTY);
+        if (serial_port < 0) {
+            printf("Error opening port. (%i - %s)\n", errno, strerror(errno));
+            return false;
+        }
+
+        termios tty;
+
+        if (tcgetattr(serial_port, &tty) != 0) {
+            printf("Error creating TTY config. (%i - %s)\n", errno, strerror(errno));
+            close(serial_port);
+            return false;
+        }
+
+        tty.c_cflag = 0;
+        tty.c_cflag |= CS8;             // 8 bits per byte
+        tty.c_cflag |= CREAD | CLOCAL;  // Enable read and ignore control lines
+
+        tty.c_lflag &= ~ICANON;         // Disable canonical input (waiting for newlines)
+        tty.c_iflag = 0;                // Disable all input processing (ie., character echoing and signal character processing)
+
+        tty.c_cc[VMIN] = 0;             // Dont block for any bytes
+        tty.c_cc[VTIME] = 1;            // 0.1 second timeout for following bytes
+
+        cfsetspeed(&tty, config.baud_rate); // Set Input baud rate
+
+        // Save tty settings
+        if (tcsetattr(serial_port, TCSANOW, &tty) != 0) {
+            printf("Error saving TTY config. (%i - %s)\n", errno, strerror(errno));
+            close(serial_port);
+            return false;
+        }
+
+        tcflush(serial_port, TCIOFLUSH);
+
+        config.serial_port = serial_port;
+
+        return true;
+    }
+
+    inline void cleanup(const Config& config) {
+        close(config.serial_port);
+    }
+
     /**
      * Takes a 4 byte chunk of memory and swaps from Big Endian (network byte order) to Little Endian
      */
@@ -44,10 +89,10 @@ namespace IMUParser {
     /**
      * Finds the index in the read buffer of the first packet signature
      */
-    int find_packet_signature(const char* buffer, const int buffer_size) {
-        static constexpr int block_size = sizeof(uint32_t);
+    int find_packet_signature(const char* buffer, const size_t buffer_size, const size_t search_offset) {
+        static constexpr size_t block_size = sizeof(uint32_t);
 
-        for (int i = 0; i < buffer_size - block_size; i++) {
+        for (size_t i = search_offset; i < buffer_size - block_size; i++) {
             uint32_t four_byte_block;
 
             std::memcpy(&four_byte_block, &buffer[i], block_size);
@@ -61,99 +106,59 @@ namespace IMUParser {
     /**
      * Takes in a serial port config and returns the latest full IMU packet from the device as an optional (may fail)
      */
-    std::optional<Packet> read_from_device(const Config& config) {
-        Packet new_packet;
+    std::vector<Packet> read_from_device(const Config& config) {
+        std::vector<Packet> packets;
 
-        int serial_port = open(config.device, O_RDWR | O_NOCTTY);
-        if (serial_port < 0) {
-            printf("Error opening port. (%i - %s)\n", errno, strerror(errno));
-            return std::nullopt;
-        }
-
-        termios tty;
-
-        if (tcgetattr(serial_port, &tty) != 0) {
-            printf("Error creating TTY config. (%i - %s)\n", errno, strerror(errno));
-            close(serial_port);
-            return std::nullopt;
-        }
-
-        tty.c_cflag = 0;
-        tty.c_cflag |= CS8;             // 8 bits per byte
-        tty.c_cflag |= CREAD | CLOCAL;  // Enable read and ignore control lines
-
-        tty.c_lflag &= ~ICANON;         // Disable canonical input (waiting for newlines)
-        tty.c_iflag = 0;                // Disable all input processing (ie., character echoing and signal character processing)
-
-        tty.c_cc[VMIN] = 0;             // Dont block for any bytes
-        tty.c_cc[VTIME] = 1;            // 0.1 second timeout for following bytes
-
-        cfsetspeed(&tty, config.baud_rate); // Set Input baud rate
-
-        // Save tty settings
-        if (tcsetattr(serial_port, TCSANOW, &tty) != 0) {
-            printf("Error saving TTY config. (%i - %s)\n", errno, strerror(errno));
-            close(serial_port);
-            return std::nullopt;
-        }
-
-        tcflush(serial_port, TCIOFLUSH);
-
-        char read_buffer[3 * PACKET_SIZE];
+        char read_buffer[300 * PACKET_SIZE];
         size_t total_bytes_read = 0;
 
         while (total_bytes_read < sizeof(read_buffer)) {
-            int bytes_read = read(serial_port, read_buffer + total_bytes_read, sizeof(read_buffer) - total_bytes_read);
+            int bytes_read = read(config.serial_port, read_buffer + total_bytes_read, sizeof(read_buffer) - total_bytes_read);
             
             if (bytes_read < 0) {
                 printf("Error reading from serial port. (%d - %s)\n", errno, strerror(errno));
-                close(serial_port);
-                return std::nullopt;
+                cleanup(config);
+                return {};
             } else if (bytes_read == 0) {
                 printf("Timeout when reading from serial port.\n");
-                close(serial_port);
-                return std::nullopt;
+                cleanup(config);
+                return {};
             }
 
             total_bytes_read += bytes_read;
         }
 
-        close(serial_port);
-
-        int signature_location = find_packet_signature(read_buffer, total_bytes_read);
-        if (signature_location == -1) {
-            printf("No valid packet signature found.\n");
-            return std::nullopt;
-        }
-        
-        if (signature_location + PACKET_SIZE > total_bytes_read) {
-            printf("Incomplete packet found\n");
-            return std::nullopt;
-        }
-
-        constexpr int COUNT_OFFSET = 4;
-        constexpr int X_OFFSET = 8;
-        constexpr int Y_OFFSET = 12;
-        constexpr int Z_OFFSET = 16;
-
-        uint32_t temp_u32;
+        size_t search_offset = 0;
+        while (search_offset < total_bytes_read) {
+            int signature_index = find_packet_signature(read_buffer, total_bytes_read, search_offset);
+            if (signature_index == -1 || signature_index + PACKET_SIZE > total_bytes_read) {
+                break;
+            }
     
-        // Packet count
-        std::memcpy(&temp_u32, &read_buffer[signature_location + COUNT_OFFSET], sizeof(uint32_t));
-        new_packet.packet_count = from_network_byte_order(temp_u32);
-
-        // X_rate_rdps
-        std::memcpy(&temp_u32, &read_buffer[signature_location + X_OFFSET], sizeof(uint32_t));
-        new_packet.X_rate_rdps = parse_float(temp_u32);
-
-        // Y_rate_rdps
-        std::memcpy(&temp_u32, &read_buffer[signature_location + Y_OFFSET], sizeof(uint32_t));
-        new_packet.Y_rate_rdps = parse_float(temp_u32);
-
-        // Z_rate_rdps
-        std::memcpy(&temp_u32, &read_buffer[signature_location + Z_OFFSET], sizeof(uint32_t));
-        new_packet.Z_rate_rdps = parse_float(temp_u32);
-
-        return new_packet;
+            Packet packet;
+            uint32_t temp_u32;
+    
+            std::memcpy(&temp_u32, &read_buffer[signature_index + 4], sizeof(uint32_t));
+            packet.packet_count = from_network_byte_order(temp_u32);
+    
+            std::memcpy(&temp_u32, &read_buffer[signature_index + 8], sizeof(uint32_t));
+            packet.X_rate_rdps = parse_float(temp_u32);
+    
+            std::memcpy(&temp_u32, &read_buffer[signature_index + 12], sizeof(uint32_t));
+            packet.Y_rate_rdps = parse_float(temp_u32);
+    
+            std::memcpy(&temp_u32, &read_buffer[signature_index + 16], sizeof(uint32_t));
+            packet.Z_rate_rdps = parse_float(temp_u32);
+    
+            packets.push_back(packet);
+    
+            search_offset = signature_index + PACKET_SIZE;
+        }
+    
+        if (packets.empty()) {
+            printf("No complete valid packets found.\n");
+        }
+    
+        return packets;
     }
 }

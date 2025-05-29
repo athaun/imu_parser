@@ -52,7 +52,7 @@ namespace Broadcaster {
         return send(msg, strlen(msg));
     }
 
-    inline void close_socket() {
+    inline void cleanup() {
         if (sockfd >= 0) {
             close(sockfd);
             sockfd = -1;
