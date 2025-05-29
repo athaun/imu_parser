@@ -39,8 +39,6 @@ int main() {
 
             printf("sent: %s\n", msg);
             Broadcaster::send_str(msg);
-        } else {
-            // Failed to read a packet
         }
 
         // Calculate next absolute time

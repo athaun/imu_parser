@@ -5,13 +5,19 @@ import termios
 import time
 import socket
 import threading
+import json
 
 PACKET_SIGNATURE = 0x7FF01CAF
 PACKET_SIZE = 20  # 4 byte signature + 4 byte count + 3*4 bytes floats
+TOTAL_PACKETS = 3000
+
+sent_packets = {}
+received_packets = set()
+lock = threading.Lock()
 
 def build_packet(count: int, x: float, y: float, z: float) -> bytes:
     """
-    Constructs a binary packet in big-endian format.
+    Constructs a binary packet in big-endian format
     Layout: [signature][count][x][y][z]
     """
     packet = struct.pack('>I', PACKET_SIGNATURE)
@@ -23,23 +29,29 @@ def build_packet(count: int, x: float, y: float, z: float) -> bytes:
 
 def udp_listener(port=9000):
     """
-    Listens for UDP broadcast messages and prints them.
+    Listens for UDP broadcast messages, parses and records them
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('0.0.0.0', port))
 
-    print(f"[UDP] Listening on port {port}...\n")
     while True:
-        data, addr = sock.recvfrom(1024)
-        print(f"[UDP] Received: {data.decode().strip()}")
+        try:
+            data, addr = sock.recvfrom(1024)
+            packet = data.decode().strip()
 
-def imu_emulator(pty_host, packet_interval=0.08):
-    """
-    Sends binary packets to the pseudoterminal.
-    """
+            packet_json = json.loads(packet)
+            print(f"[UDP] recv: {packet_json}")
+
+            with lock:
+                received_packets.add(packet_json["count"])
+               
+        except Exception as e:
+            print(f"[UDP] Failed to parse packet: {e}")
+
+def imu_emulator(pty_host):
     with os.fdopen(pty_host, 'wb', buffering=0) as imu_output:
         packet_count = 0
-        while True:
+        while packet_count < TOTAL_PACKETS:
             packet = build_packet(
                 count = packet_count,
                 x = 0.1 * packet_count,
@@ -50,9 +62,21 @@ def imu_emulator(pty_host, packet_interval=0.08):
             imu_output.write(packet)
             imu_output.flush()
 
-            print(f"[IMU] Sent packet {packet_count}: X={0.1 * packet_count:.2f}, Y={0.02 * packet_count:.2f}, Z={0.01 * packet_count:.2f}")
-            packet_count = (packet_count + 1) % 1000
-            time.sleep(packet_interval)
+            print(f"[IMU] sent: {packet_count}: X={0.1 * packet_count:.2f}, Y={0.02 * packet_count:.2f}, Z={0.01 * packet_count:.2f}")
+            with lock:
+                sent_packets[packet_count] = time.time()
+
+            packet_count += 1
+            time.sleep(0.0001);
+
+        with lock:
+            missed = [p for p in sent_packets if p not in received_packets]
+            print(f"\n--- Statistics ---")
+            print(f"Total packets sent     : {TOTAL_PACKETS}")
+            print(f"Total packets received : {len(received_packets)}")
+            print(f"Total packets dropped  : {len(missed)}")
+            print(f"Drop rate              : {len(missed) / TOTAL_PACKETS:.2%}")
+
 
 def main():
     # Create a pseudoterminal pair
