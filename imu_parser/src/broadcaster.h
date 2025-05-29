@@ -5,17 +5,25 @@
 
 namespace Broadcaster {
 
+    /**
+     * @brief Initializes the UDP socket for broadcasting.
+     * 
+     * @param broadcast_ip The IP address to broadcast to (e.g., "127.255.255.255")
+     * @param port The port number to use for broadcasting
+     * @return true if the socket was successfully created and configured, false otherwise
+     */
     bool init(const char* broadcast_ip, int port);
 
     /**
-     * Sends raw binary data over the socket
-    */
-    bool send(const void* data, size_t len);
+     * @brief Sends a string of bytes/chars as a broadcast message.
+     * 
+     * @param message The message to broadcast
+     * @return true if the message was successfully sent, false otherwise
+     */
+    bool send(const char* message);
 
     /**
-     * Sends a null-terminated string over the socket
+     * @brief Cleans up the broadcaster by closing the socket.
      */
-    bool send_str(const char* msg);
-
     void cleanup();
 }

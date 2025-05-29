@@ -8,7 +8,7 @@
 #include "parser.h"
 
 int main() {
-    static constexpr int LOOP_TIME_NS = 80'000'000;  // 80ms
+    constexpr int LOOP_TIME_NS = 80'000'000; // 80ms
 
     // Set the scheduler priority near the top (80 out of 1-99)
     // This requires sudo but it will still run without it.
@@ -35,13 +35,11 @@ int main() {
         auto packets = IMUParser::read_from_device(device_cfg);
 
         for (auto& p : packets) {
-            char msg[128];
-            snprintf(msg, sizeof(msg),
+            char message[128];
+            snprintf(message, sizeof(message),
                 "{ \"count\": %u, \"X\": %.3f, \"Y\": %.3f, \"Z\": %.3f }",
                 p.packet_count, p.X_rate_rdps, p.Y_rate_rdps, p.Z_rate_rdps);
-
-            printf("sent: %s\n", msg);
-            Broadcaster::send_str(msg);
+            Broadcaster::send(message);
         }
 
         // Calculate next absolute time

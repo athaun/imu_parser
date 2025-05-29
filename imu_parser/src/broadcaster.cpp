@@ -15,15 +15,24 @@ namespace Broadcaster {
     static int sockfd = -1;
     static sockaddr_in broadcast_addr = {};
 
+    /**
+     * @brief Initializes the UDP socket for broadcasting.
+     * 
+     * @param broadcast_ip The IP address to broadcast to (e.g., "127.255.255.255")
+     * @param port The port number to use for broadcasting
+     * @return true if the socket was successfully created and configured, false otherwise
+     */
     bool init(const char* broadcast_ip, int port) {
+        // Create a UDP socket 
         sockfd = socket(AF_INET, SOCK_DGRAM, 0);
         if (sockfd < 0) {
             printf("Failed to create socket (%d - %s)\n", errno, strerror(errno));
             return false;
         }
 
-        int broadcast_enable = 1;
-        if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast_enable, sizeof(broadcast_enable)) < 0) {
+        // Configure the socket to broadcast data
+        int enable_broadcast = 1;
+        if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &enable_broadcast, sizeof(enable_broadcast)) < 0) {
             printf("Failed to enable broadcast (%d - %s)\n", errno, strerror(errno));
             close(sockfd);
             sockfd = -1;
@@ -31,15 +40,21 @@ namespace Broadcaster {
         }
 
         memset(&broadcast_addr, 0, sizeof(broadcast_addr));
-        broadcast_addr.sin_family = AF_INET;
-        broadcast_addr.sin_port = htons(port);
-        broadcast_addr.sin_addr.s_addr = inet_addr(broadcast_ip);
+        broadcast_addr.sin_family = AF_INET; // IPv4
+        broadcast_addr.sin_port = htons(port); // Convert to network byte order
+        broadcast_addr.sin_addr.s_addr = inet_addr(broadcast_ip); 
 
         return true;
     }
 
-    bool send(const void* data, size_t len) {
-        ssize_t sent = sendto(sockfd, data, len, 0, (struct sockaddr*)&broadcast_addr, sizeof(broadcast_addr));
+    /**
+     * @brief Sends a string of bytes/chars as a broadcast message.
+     * 
+     * @param message The message to broadcast
+     * @return true if the message was successfully sent, false otherwise
+     */
+    bool send(const char* message) {
+        size_t sent = sendto(sockfd, message, strlen(message), 0, (sockaddr*)&broadcast_addr, sizeof(broadcast_addr));
         if (sent < 0) {
             printf("Broadcast failed to send (%d - %s)\n", errno, strerror(errno));
             return false;
@@ -48,10 +63,9 @@ namespace Broadcaster {
         return true;
     }
 
-    bool send_str(const char* msg) {
-        return send(msg, strlen(msg));
-    }
-
+    /**
+     * @brief Cleans up the broadcaster by closing the socket.
+     */
     inline void cleanup() {
         if (sockfd >= 0) {
             close(sockfd);

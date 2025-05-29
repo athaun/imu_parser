@@ -20,19 +20,25 @@ namespace IMUParser {
     };
 
     /**
-     * Takes in a serial port config and opens a serial port.
-     * Modifies the config by adding the port ID.
-     * Returns true if successful.
-     */
+     * @brief Initializes the serial port with the given device configuration.
+     * 
+     * @param config Reference to the Config struct containing device and baud rate.
+     * @return true if the serial port was successfully opened and configured, false otherwise.
+     */ 
     bool init(Config& config);
 
     /**
-     * Closes the serial communication port
+     * @brief Closes the serial port communication.
+     * 
+     * @param config Reference to the Config struct containing the serial port.
      */
     void cleanup(const Config& config); 
 
     /**
-     * Takes in a serial port config and returns a vector of IMU packets
+     * @brief Reads data from the serial port and returns a vector of parsed Packets
+     * 
+     * @param config The configuration for the serial port
+     * @return A vector of Packet objects containing the parsed data.
      */
     std::vector<Packet> read_from_device(const Config& config);
 }
