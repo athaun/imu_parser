@@ -10,8 +10,8 @@
 #include <limits>
 
 namespace IMUParser {
-    constexpr uint32_t PACKET_SIGNATURE = 0x7FF01CAF;
-    constexpr size_t PACKET_SIZE = 20; // 4 byte signature + 4 byte count + 3*4 bytes floats
+    static constexpr uint32_t PACKET_SIGNATURE = 0x7FF01CAF;
+    static constexpr size_t PACKET_SIZE = 20; // 4 byte signature + 4 byte count + 3*4 bytes floats
 
     /**
      * Constructs the config struct for the serial port.
@@ -85,8 +85,8 @@ namespace IMUParser {
         tty.c_lflag &= ~ICANON;         // Disable canonical input (waiting for newlines)
         tty.c_iflag = 0;                // Disable all input processing (ie., character echoing and signal character processing)
 
-        tty.c_cc[VMIN] = 1;             // Blocking read for at least 1 byte
-        tty.c_cc[VTIME] = 5;            // 0.5 second timeout for following bytes
+        tty.c_cc[VMIN] = 0;             // Dont block for any bytes
+        tty.c_cc[VTIME] = 1;            // 0.1 second timeout for following bytes
 
         cfsetspeed(&tty, config.baud_rate); // Set Input baud rate
 
@@ -106,11 +106,11 @@ namespace IMUParser {
             int bytes_read = read(serial_port, read_buffer + total_bytes_read, sizeof(read_buffer) - total_bytes_read);
             
             if (bytes_read < 0) {
-                std::cerr << "Error reading from serial port: " << strerror(errno) << "\n";
+                printf("Error reading from serial port. (%d - %s)\n", errno, strerror(errno));
                 close(serial_port);
                 return std::nullopt;
             } else if (bytes_read == 0) {
-                std::cerr << "Timeout when reading from serial port.\n";
+                printf("Timeout when reading from serial port.\n");
                 close(serial_port);
                 return std::nullopt;
             }
