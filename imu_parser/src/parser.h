@@ -32,7 +32,7 @@ namespace IMUParser {
     void cleanup(const Config& config); 
 
     /**
-     *  
+     * Takes in a serial port config and returns a vector of IMU packets
      */
     std::vector<Packet> read_from_device(const Config& config);
 }

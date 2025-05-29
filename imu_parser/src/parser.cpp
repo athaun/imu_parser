@@ -21,7 +21,7 @@ namespace IMUParser {
         device[sizeof(device) - 1] = '\0';
     }
 
-    bool init (Config& config) {
+    bool init(Config& config) {
         int serial_port = open(config.device, O_RDWR | O_NOCTTY);
         if (serial_port < 0) {
             printf("Error opening port. (%i - %s)\n", errno, strerror(errno));
@@ -103,35 +103,11 @@ namespace IMUParser {
         return -1;
     }
 
-    /**
-     * Takes in a serial port config and returns the latest full IMU packet from the device as an optional (may fail)
-     */
-    std::vector<Packet> read_from_device(const Config& config) {
-        std::vector<Packet> packets;
-
-        char read_buffer[300 * PACKET_SIZE];
-        size_t total_bytes_read = 0;
-
-        while (total_bytes_read < sizeof(read_buffer)) {
-            int bytes_read = read(config.serial_port, read_buffer + total_bytes_read, sizeof(read_buffer) - total_bytes_read);
-            
-            if (bytes_read < 0) {
-                printf("Error reading from serial port. (%d - %s)\n", errno, strerror(errno));
-                cleanup(config);
-                return {};
-            } else if (bytes_read == 0) {
-                printf("Timeout when reading from serial port.\n");
-                cleanup(config);
-                return {};
-            }
-
-            total_bytes_read += bytes_read;
-        }
-
+    void parse_packets(std::vector<char>& read_buffer, std::vector<Packet>& packets) {
         size_t search_offset = 0;
-        while (search_offset < total_bytes_read) {
-            int signature_index = find_packet_signature(read_buffer, total_bytes_read, search_offset);
-            if (signature_index == -1 || signature_index + PACKET_SIZE > total_bytes_read) {
+        while (search_offset + PACKET_SIZE <= read_buffer.size()) {
+            int signature_index = find_packet_signature(read_buffer.data(), read_buffer.size(), search_offset);
+            if (signature_index == -1 || signature_index + PACKET_SIZE > read_buffer.size()) {
                 break;
             }
     
@@ -151,14 +127,39 @@ namespace IMUParser {
             packet.Z_rate_rdps = parse_float(temp_u32);
     
             packets.push_back(packet);
-    
             search_offset = signature_index + PACKET_SIZE;
         }
     
-        if (packets.empty()) {
-            printf("No complete valid packets found.\n");
+        // Remove processed bytes
+        if (search_offset > 0) {
+            read_buffer.erase(read_buffer.begin(), read_buffer.begin() + search_offset);
+        }
+    }
+
+    /**
+     * Takes in a serial port config and returns a vector of IMU packets
+     */
+    std::vector<Packet> read_from_device(const Config& config) {
+        static std::vector<char> read_buffer;
+        static std::vector<Packet> packets;
+        packets.clear();
+    
+        char tmp_buffer[512];
+        int bytes_read = read(config.serial_port, tmp_buffer, sizeof(tmp_buffer));
+        
+        if (bytes_read < 0) {
+            cleanup(config);
+            perror("Error reading from serial port\n");
+            return {};
+        } else if (bytes_read == 0) {
+            return {};
         }
     
+        read_buffer.insert(read_buffer.end(), tmp_buffer, tmp_buffer + bytes_read);
+    
+        parse_packets(read_buffer, packets);
+        
+    
         return packets;
-    }
+    }    
 }
