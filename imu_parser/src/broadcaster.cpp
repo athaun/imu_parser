@@ -66,7 +66,7 @@ namespace Broadcaster {
     /**
      * @brief Cleans up the broadcaster by closing the socket.
      */
-    inline void cleanup() {
+    void cleanup() {
         if (sockfd >= 0) {
             close(sockfd);
             sockfd = -1;

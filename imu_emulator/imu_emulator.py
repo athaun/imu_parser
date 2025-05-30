@@ -49,7 +49,7 @@ def udp_listener(port=9000):
     while not shutdown_event.is_set():
         try:
             # Receive data from the socket, 
-            data, addr = sock.recvfrom(256)
+            data, addr = sock.recvfrom(128)
             packet = json.loads(data.decode())
 
             print(f"[UDP] recv: {packet}")

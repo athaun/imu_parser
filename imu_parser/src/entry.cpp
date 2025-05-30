@@ -1,40 +1,38 @@
 #include <iostream>
-#include <time.h>
-#include <sched.h>
-#include <unistd.h>
-#include <sstream>
+#include <csignal>
 
 #include "broadcaster.h"
 #include "parser.h"
+#include "scheduler.h"
+
+bool running = true;
+
+void sigint_handler(int _) {
+    running = false;
+}
 
 int main() {
-    constexpr int LOOP_TIME_NS = 80'000'000; // 80ms
+    std::signal(SIGINT, sigint_handler);
 
-    // Set the scheduler priority near the top (80 out of 1-99)
-    // This requires sudo but it will still run without it.
-    sched_param sch_params;
-    sch_params.sched_priority = 80;
-    if (sched_setscheduler(0, SCHED_FIFO, &sch_params) == -1) {
-        perror("sched_setscheduler failed");
-    }
-
-    timespec next_time;
-    clock_gettime(CLOCK_MONOTONIC, &next_time);
-
-    if (!Broadcaster::init("127.255.255.255", 9000)) {
-        return 1;
-    }
-
+    // Initialize the IMU parser, UDP broadcaster, and scheduler
     auto device_cfg = IMUParser::Config(B921600, "/tmp/tty1");
-    if (!IMUParser::init(device_cfg)) {
+
+    Scheduler::init();
+    int broadcast_init = Broadcaster::init("127.255.255.255", 9000);
+    int parser_init = IMUParser::init(device_cfg);
+
+    if (!broadcast_init || !parser_init) {
+        perror("Failed to initialize IMU parser or UDP broadcast");
         return 1;
     }
 
-    while (true) {
-        
-        auto packets = IMUParser::read_from_device(device_cfg);
+    // Read data from the IMU device and broadcast it via UDP until shutdown
+    std::vector<IMUParser::Packet> packets;
+    while (running) {
+        packets = IMUParser::read_from_device(device_cfg);
 
         for (auto& p : packets) {
+            // Package the data into JSON and broadcast
             char message[128];
             snprintf(message, sizeof(message),
                 "{ \"count\": %u, \"X\": %.3f, \"Y\": %.3f, \"Z\": %.3f }",
@@ -42,13 +40,7 @@ int main() {
             Broadcaster::send(message);
         }
 
-        // Calculate next absolute time
-        next_time.tv_nsec += LOOP_TIME_NS;
-        next_time.tv_sec += next_time.tv_nsec / 1'000'000'000;
-        next_time.tv_nsec = next_time.tv_nsec % 1'000'000'000;
-
-        // Sleep until the next 80ms slot
-        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next_time, nullptr);
+        Scheduler::update();
     }
 
     Broadcaster::cleanup();

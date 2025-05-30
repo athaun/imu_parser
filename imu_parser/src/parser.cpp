@@ -50,7 +50,7 @@ namespace IMUParser {
             return false;
         }
 
-        tty.c_cflag = 0;
+        tty.c_cflag = 0;                // Clear all control flags
         tty.c_cflag |= CS8;             // 8 bits per byte
         tty.c_cflag |= CREAD | CLOCAL;  // Enable read and ignore control lines
 
