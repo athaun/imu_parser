@@ -7,6 +7,14 @@ This project consists of two main components: an IMU Emulator and an IMU Parser.
 
 ---
 
+### Running the IMU emulator
+From the repository root
+> NOTE: Ensure the emulator is running before the parser, and that it is killed first. If it is not killed first, it will hang.
+```
+cd imu_emulator
+python3 imu_emulator.py
+```
+
 ### Running the parser
 From the repository root
 ```
@@ -14,13 +22,6 @@ cd imu_parser
 ./build.sh [run|test|help]
 ```
 you may have to make build.sh executable using `chmod +x ./build.sh` if it fails to run.
-
-### Running the IMU emulator
-From the repository root
-```
-cd imu_emulator
-python3 imu_emulator.py
-```
 
 ---
 
