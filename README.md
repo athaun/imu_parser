@@ -22,7 +22,7 @@ you may have to make build.sh executable using `chmod +x ./build.sh` if it fails
 
 ---
 
-## Features:
+### Features:
 
 IMU Emulator:
 - Simulates IMU output on a virtual serial port (/tmp/tty1)
@@ -37,7 +37,7 @@ IMU Parser:
 
 ---
 
-Dependencies:
+### Dependencies:
 
 IMU Emulator:
 - Python 3.x
