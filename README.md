@@ -6,14 +6,24 @@ This project consists of two main components: an IMU Emulator and an IMU Parser.
 
 ### Running the IMU emulator
 From the repository root
+
 > NOTE: Ensure the emulator is running before the parser, and that it is killed first. If it is not killed first, it will hang.
-```
+
+```bash
 cd imu_emulator
 python3 imu_emulator.py
 ```
 
 ### Running the parser
 From the repository root
+Install the Google test library to your system.
+```bash
+# Install google test via your package manager (debian-based)
+sudo apt install libgtest-dev 
+# or (arch-based)
+yay -S gtest
+```
+Run the parser with `run`, test with `test`.
 ```
 cd imu_parser
 ./build.sh [run|test|help]
