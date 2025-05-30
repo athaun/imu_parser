@@ -1,7 +1,4 @@
-## Technical Assessment for True Anomaly
-Asher Haun
-
-5/30/2025
+## IMU Serial parser and Emulator
 
 This project consists of two main components: an IMU Emulator and an IMU Parser. The emulator simulates an Inertial Measurement Unit (IMU) and transmits phaux data over a virtual serial port. The parser reads the serial data, extracts the packet fields, and broadcasts it as JSON over UDP.
 
