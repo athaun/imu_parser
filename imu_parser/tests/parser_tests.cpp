@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
-#include "../src/parser.h"
 #include <vector>
 #include <cstring>
+
+#include "../src/parser.h"
 
 namespace IMUParser {
     uint32_t from_network_byte_order(uint32_t data);
