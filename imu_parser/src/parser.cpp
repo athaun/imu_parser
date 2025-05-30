@@ -194,12 +194,13 @@ namespace IMUParser {
         static char tmp_buffer[128];
 
         packets.clear();       
+        std::memset(tmp_buffer, 0, sizeof(tmp_buffer));
 
         while (true) {
             // Do a non-blocking read from the serial port into a small temporary buffer
             int bytes_read = read(config.serial_port, tmp_buffer, sizeof(tmp_buffer));
             
-            if (bytes_read > 0) {                
+            if (bytes_read > 0) {
                 // Append the temporary buffer to the read buffer for later processing
                 read_buffer.insert(read_buffer.end(), tmp_buffer, tmp_buffer + bytes_read);
             } else if (bytes_read == 0 || (bytes_read < 0 && errno == EAGAIN)) {

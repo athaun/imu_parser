@@ -13,7 +13,7 @@ namespace Scheduler {
         clock_gettime(CLOCK_MONOTONIC, &next_time);
     }
 
-    void update() {
+    void wait() {
         // Calculate next absolute time
         next_time.tv_nsec += loop_time;
         next_time.tv_sec += next_time.tv_nsec / 1'000'000'000;

@@ -11,7 +11,7 @@ import signal
 PACKET_SIGNATURE = 0x7FF01CAF
 PACKET_SIZE = 20  # 4 byte signature + 4 byte count + 3*4 bytes floats
 TOTAL_PACKETS = 3000
-PAUSE_TIME = 0.0005
+PAUSE_TIME = 0.001
 
 sent_packets = {}
 received_packets = set()

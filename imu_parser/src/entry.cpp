@@ -40,7 +40,7 @@ int main() {
             Broadcaster::send(message);
         }
 
-        Scheduler::update();
+        Scheduler::wait();
     }
 
     Broadcaster::cleanup();
